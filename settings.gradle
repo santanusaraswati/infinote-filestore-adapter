@@ -1,0 +1,4 @@
+rootProject.name = 'customfilestore'
+include 'adapter-base'
+include 'reference-adapter'
+

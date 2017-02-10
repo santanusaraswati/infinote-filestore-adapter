@@ -1,0 +1,40 @@
+# .gitignore for Gradle
+
+# build local cache
+.gradle
+
+# possible build target directories
+/out
+/build
+*/build
+/bin
+/buildSrc/out
+/buildSrc/build
+/subprojects/*/out
+/subprojects/*/build
+/subprojects/docs/src/samples/*/*/build
+/subprojects/*/bin
+
+# ide specific exclusions, first idea then eclipse
+.idea
+/intellij
+/*.iml
+/*.ipr
+/*.iws
+/subprojects/*/*.iml
+/buildSrc/*.ipr
+/buildSrc/*.iws
+/buildSrc/*.iml
+*.classpath
+*.project
+*.settings
+
+# java compiled files
+*.class
+
+# java package files
+*.war
+*.ear
+/.nb-gradle/profiles/private/
+.nb-gradle-properties
+gradle
