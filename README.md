@@ -1,1 +1,0 @@
-# infinote-filestore-adapter
