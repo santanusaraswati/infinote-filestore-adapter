@@ -12,6 +12,10 @@ public class FileObject extends FileStoreObject {
     // version identifier
     private String version;
 
+    public FileObject() {
+        setDirectory(false);
+    }
+
     public String getContentType() {
         return contentType;
     }

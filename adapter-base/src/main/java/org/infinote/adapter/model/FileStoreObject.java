@@ -1,5 +1,7 @@
 package org.infinote.adapter.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,6 +13,8 @@ public class FileStoreObject {
     // identifier of the parent directory
     private String parentId;
     private String name;
+    @JsonProperty("folder")
+    private boolean directory;
     private String createdBy;
     // time in millis
     private long createdTime;
@@ -44,6 +48,14 @@ public class FileStoreObject {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public boolean isDirectory() {
+        return directory;
+    }
+
+    public void setDirectory(boolean directory) {
+        this.directory = directory;
     }
 
     public String getCreatedBy() {

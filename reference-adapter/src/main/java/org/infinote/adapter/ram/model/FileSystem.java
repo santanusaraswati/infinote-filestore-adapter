@@ -1,6 +1,7 @@
 package org.infinote.adapter.ram.model;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
@@ -42,6 +43,21 @@ public class FileSystem {
         return Optional.ofNullable(directories.get(id)).map(DirectoryEntity::getDirChildren).orElse(Collections.emptyList());
     }
 
+    public Optional<FileEntity> getFile(String id) {
+        return Optional.ofNullable(files.get(id));
+    }
+
+    public Optional<InputStream> getFileContent(String id) {
+        return Optional.ofNullable(files.get(id)).map(f -> {
+            try {
+                return Files.newInputStream(f.getFilePath());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        });
+    }
+
     public List<FileEntity> getChildrenFiles(String id) {
         return Optional.ofNullable(directories.get(id)).map(DirectoryEntity::getFileChildren).orElse(Collections.emptyList());
     }
@@ -51,7 +67,7 @@ public class FileSystem {
         @Override
         public FileVisitResult visitFile(Path file,
                                          BasicFileAttributes attr) throws IOException {
-            if (attr.isRegularFile()) {
+            if (attr.isRegularFile() && !Files.isHidden(file)) {
                 FileEntity fileEntity = new FileEntity(Base64.getEncoder().encodeToString(file.toString().getBytes("UTF-8")), file, attr);
                 files.put(fileEntity.getId(), fileEntity);
                 String parentId = Base64.getEncoder().encodeToString(file.getParent().toString().getBytes("UTF-8"));

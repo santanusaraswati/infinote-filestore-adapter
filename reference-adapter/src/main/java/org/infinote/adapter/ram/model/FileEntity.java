@@ -1,8 +1,11 @@
 package org.infinote.adapter.ram.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.infinote.adapter.model.FileObject;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
@@ -20,18 +23,26 @@ public class FileEntity {
     private long createdTime;
     private String modifiedBy;
     private long modifiedTime;
-    private String content;
+    private String contentType;
     private List<PermissionEntity> permissions = new ArrayList<>();
+    @JsonIgnore
+    private Path filePath;
 
     public FileEntity() {
     }
 
-    public FileEntity(String id, Path directoryPath, BasicFileAttributes attrs) {
+    public FileEntity(String id, Path filePath, BasicFileAttributes attrs) {
         this.id = id;
-        File dir = directoryPath.toFile();
-        this.name = dir.getName();
+        File file = filePath.toFile();
+        this.name = file.getName();
         this.createdTime = attrs.creationTime().toMillis();
         this.modifiedTime = attrs.lastModifiedTime().toMillis();
+        this.filePath = filePath;
+        try {
+            this.contentType = Files.probeContentType(filePath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public String getId() {
@@ -98,12 +109,16 @@ public class FileEntity {
         this.permissions = permissions;
     }
 
-    public String getContent() {
-        return content;
+    public String getContentType() {
+        return contentType;
     }
 
-    public void setContent(String content) {
-        this.content = content;
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public Path getFilePath() {
+        return filePath;
     }
 
     public FileObject toFile() {
