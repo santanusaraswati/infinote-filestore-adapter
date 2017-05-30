@@ -43,6 +43,12 @@ public class FileEntity {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        PermissionEntity permissionEntity = new PermissionEntity();
+        permissionEntity.setUserId("santanu");
+        permissionEntity.setRead(true);
+        permissionEntity.setUpdate(true);
+        permissionEntity.setDelete(false);
+        permissions.add(permissionEntity);
     }
 
     public String getId() {

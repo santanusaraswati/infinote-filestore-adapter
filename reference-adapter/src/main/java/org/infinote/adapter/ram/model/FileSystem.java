@@ -6,6 +6,9 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author santanu
@@ -21,11 +24,15 @@ public class FileSystem {
     private Map<String, DirectoryEntity> directories = new HashMap<>();
     private Map<String, FileEntity> files = new HashMap<>();
 
+    private WatchService watcher;
+
     private FileSystem() {
         try {
-            String userHome = System.getProperty("user.home");
+            String userHome = "/home/santanu/Documents";
+            watcher = FileSystems.getDefault().newWatchService();
             Files.walkFileTree(Paths.get(userHome), new FileSystemVisitor());
             System.out.println("Finished creating file system tree!");
+            addWatcher();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -85,6 +92,10 @@ public class FileSystem {
                 return FileVisitResult.CONTINUE;
             }
             if (!Files.isHidden(dir)) {
+                dir.register(watcher,
+                        StandardWatchEventKinds.ENTRY_CREATE,
+                        StandardWatchEventKinds.ENTRY_DELETE,
+                        StandardWatchEventKinds.ENTRY_MODIFY);
                 DirectoryEntity directoryEntity = new DirectoryEntity(Base64.getEncoder().encodeToString(dir.toString().getBytes("UTF-8")), dir, attrs);
                 directories.put(directoryEntity.getId(), directoryEntity);
                 String parentId = Base64.getEncoder().encodeToString(dir.getParent().toString().getBytes("UTF-8"));
@@ -94,5 +105,79 @@ public class FileSystem {
             }
             return FileVisitResult.SKIP_SUBTREE;
         }
+    }
+
+    private void addWatcher() {
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 100, TimeUnit.DAYS, new ArrayBlockingQueue<Runnable>(2));
+            executor.execute(() -> {
+                for (;;) {
+
+                    // wait for key to be signaled
+                    WatchKey key;
+                    try {
+                        key = watcher.take();
+                    } catch (InterruptedException x) {
+                        return;
+                    }
+
+                    for (WatchEvent<?> event: key.pollEvents()) {
+                        WatchEvent.Kind<?> kind = event.kind();
+
+                        // This key is registered only
+                        // for ENTRY_CREATE events,
+                        // but an OVERFLOW event can
+                        // occur regardless if events
+                        // are lost or discarded.
+                        if (kind == StandardWatchEventKinds.OVERFLOW) {
+                            continue;
+                        }
+
+                        // The filename is the
+                        // context of the event.
+                        WatchEvent<Path> ev = (WatchEvent<Path>)event;
+                        Path filename = ev.context();
+
+                        try {
+                            // Resolve the filename against the directory.
+                            // If the filename is "test" and the directory is "foo",
+                            // the resolved name is "test/foo".
+                            Path dir = (Path) key.watchable();
+                            Path child = dir.resolve(filename);
+                            System.out.println("Got file " + child.toString() + " operation " + kind.name());
+                            if (Files.isDirectory(child) && kind == StandardWatchEventKinds.ENTRY_CREATE) {
+                                DirectoryEntity directoryEntity = new DirectoryEntity(Base64.getEncoder().encodeToString(child.toString().getBytes("UTF-8")), child, Files.readAttributes(child, BasicFileAttributes.class));
+                                directories.put(directoryEntity.getId(), directoryEntity);
+                                String parentId = Base64.getEncoder().encodeToString(dir.toString().getBytes("UTF-8"));
+                                DirectoryEntity parentDirectory = directories.get(parentId);
+                                parentDirectory.addChild(directoryEntity);
+                                child.register(watcher,
+                                        StandardWatchEventKinds.ENTRY_CREATE,
+                                        StandardWatchEventKinds.ENTRY_DELETE,
+                                        StandardWatchEventKinds.ENTRY_MODIFY);
+                            } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
+                                    String id = Base64.getEncoder().encodeToString(child.toString().getBytes("UTF-8"));
+                                    directories.remove(id);
+                                    String parentId = Base64.getEncoder().encodeToString(dir.toString().getBytes("UTF-8"));
+                                    DirectoryEntity parentDirectory = directories.get(parentId);
+                                    parentDirectory.getDirChildren().removeIf(d -> id.equals(d.getId()));
+                                    files.remove(id);
+                                    parentDirectory.getFileChildren().removeIf(d -> id.equals(d.getId()));
+                            }
+                            continue;
+                        } catch (IOException x) {
+                            System.err.println(x);
+                            continue;
+                        }
+                    }
+
+                    // Reset the key -- this step is critical if you want to
+                    // receive further watch events.  If the key is no longer valid,
+                    // the directory is inaccessible so exit the loop.
+                    boolean valid = key.reset();
+                    if (!valid) {
+                        break;
+                    }
+                }
+            });
     }
 }
